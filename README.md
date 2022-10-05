@@ -1,3 +1,9 @@
+# Statement
+ this is the official code for sigir 2022 paper 《CTnoCVR: A Novelty Auxiliary Task Making the Lower-CTR-Higher-CVR Upper》
+
+ paper is here https://dl.acm.org/doi/pdf/10.1145/3477495.3531843
+
+
 # structure of the code
   * the main code is in `mctr`
   * scripts for running is in `tools`
@@ -18,3 +24,7 @@
 * figure out how to utilize the value of each feature (currently didn't pay attention to it)
 * make datareader faster (currently 350ms/batch(5000 example))
 * all negative batch could impact the learning process since it's easy to overfit due to the imbalance of ali-cpp dataset. I guess we could try to give a dynamic weight of each batch according to the pecentage of negative examples in a batch.  added focalLoss, but it's only comparable with binary_crossentropy loss.
+
+# contributor
+ jeffzhengye
+ scalaboy
