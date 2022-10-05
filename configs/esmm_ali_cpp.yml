@@ -1,0 +1,170 @@
+Global:
+  use_gpu: true
+  epochs: 3
+  additional_tag: ''  # use to name the checkpoint for additional settings in the experiments.
+  checkpoint: &v_checkpoint  './checkpoint/esmm'
+  results_dir: './results'
+  # change the base directory of your data. only this parameter *cannot be set via commandline.
+  #  data_base: &base /data/yezheng/ctr/x-deeplearning/xdl-algorithm-solution/ESMM/data/build/
+  #  data_base: &base /mnt/d/datasets/ctr/tfrecord/
+  data_base: &base /home/deeplp/mainspace/ctr/build/
+  #data_base: &base /home1/heben/yezheng/ctr/data/
+
+Models:
+  #active: 'esmm_mmoe_add_loss',,mmoe_add_loss # which model is active. put multiple model in one place
+  active: 'mmoe_add_loss'
+  'esmm':
+    embed_size: 18
+    feature_dim: 1000
+    min_by: 3 # use to decide the hash bucket, if the feature_dim is far less than 1000, we can reduce the waste.
+    share_embedding: true
+    class_weight: [1., 1.]
+    mlp_ctr: [200, 80]  # [360, 200, 80]: origin paper config.
+    mlp_cvr: [200, 80]
+    dropouts: [0.5, 0.5] # [0.5, 0.5, 0.5]
+    batch_norm: false
+    activation:
+      name: LeakyReLU
+      paras:
+        alpha: 0.25 # 0.25 is the default value in x-deeplearning
+
+  'esmm_mmoe':
+    embed_size: 12
+    feature_dim: 1000
+    min_by: 3  # use to decide the hash bucket, if the feature_dim is far less than 1000, we can reduce the waste.
+    share_embedding: true
+    class_weight: [1., 1.]
+    mlp_ctr: [320, 160, 60]  # [360, 200, 80]: origin paper config.
+    mlp_cvr: [200, 80]
+    dropouts: [] # [0.5, 0.5, 0.5]
+    batch_norm: false
+    activation:
+      name: LeakyReLU
+      paras:
+        alpha: 0.25 # 0.25 is the default value in x-deeplearning
+    units: 4
+    num_experts: 8
+    num_tasks: 2
+
+  'esmm_mmoe_add_loss':
+    embed_size: 12
+    feature_dim: 1000
+    min_by: 3  # use to decide the hash bucket, if the feature_dim is far less than 1000, we can reduce the waste.
+    share_embedding: true
+    class_weight: [1., 1.]
+    mlp_ctr: [200, 80]  # [360, 200, 80]: origin paper config.
+    mlp_cvr: [200, 80]
+    dropouts: [] # [0.5, 0.5, 0.5]
+    batch_norm: false
+    activation:
+      name: LeakyReLU
+      paras:
+        alpha: 0.25 # 0.25 is the default value in x-deeplearning
+    units: 4
+    num_experts: 8
+    num_tasks: 3
+
+  'mmoe_add_loss':
+    embed_size: 12
+    feature_dim: 1000
+    min_by: 3  # use to decide the hash bucket, if the feature_dim is far less than 1000, we can reduce the waste.
+    share_embedding: true
+    class_weight: [1., 1.]
+    mlp_ctr: [200, 80]  # [360, 200, 80]: origin paper config.
+    mlp_cvr: [200, 80]
+    dropouts: [] # [0.5, 0.5, 0.5]
+    batch_norm: false
+    activation:
+      name: LeakyReLU
+      paras:
+        alpha: 0.25 # 0.25 is the default value in x-deeplearning
+    units: 4
+    num_experts: 8
+    num_tasks: 3
+
+
+
+Loss:  # different model may have different outputs
+  esmm:
+    key: ['ctr_output', 'ctcvr_pred', 'cvr_output']
+    # [DSigmoidFocalCrossEntropy, DSigmoidFocalCrossEntropy, DSigmoidFocalCrossEntropy]
+    # [direct_auc_loss, direct_auc_loss, fake_loss], [sparse_categorical_crossentropy, sparse_categorical_crossentropy, sparse_categorical_crossentropy]
+    value: [binary_crossentropy, binary_crossentropy, binary_crossentropy_cvr]
+    weights: [1., 1., 0.]
+    paras:
+      alpha: 0.25
+      gamma: 2.
+  esmm_mmoe:
+    key: ['ctr_output', 'ctcvr_pred', 'cvr_output']
+    # [direct_auc_loss, direct_auc_loss, fake_loss], [sparse_categorical_crossentropy, sparse_categorical_crossentropy, sparse_categorical_crossentropy]
+    value: [binary_crossentropy, binary_crossentropy, binary_crossentropy_cvr]
+    weights: [1., 1., 0.]
+  esmm_mmoe_add_loss:
+    key: ['ctr_output', 'ctcvr_pred', 'cvr_output', 'ct_nocvr_pred']
+    # [direct_auc_loss, direct_auc_loss, fake_loss, direct_auc_loss],
+    value: [binary_crossentropy, binary_crossentropy, binary_crossentropy_cvr, binary_crossentropy]
+    weights: [1., 1., 0., 1.]
+    paras:
+      alpha: 0.25
+      gamma: 2.
+  mmoe_add_loss:
+    key: ['ctr_output', 'ctcvr_pred', 'cvr_output', 'ct_nocvr_pred']
+    # [direct_auc_loss, direct_auc_loss, fake_loss, direct_auc_loss],
+    value: [binary_crossentropy, binary_crossentropy_cvr, binary_crossentropy_cvr, binary_crossentropy]
+    weights: [1., 0., 10., 1.]
+    paras:
+      alpha: 0.25
+      gamma: 2.
+
+Optimizer:
+  active: Adam
+  Adam:
+    lr: 0.001
+    epsilon: 1.e-08
+    decay: 0.0001
+  Adamax:
+    lr: 0.001
+  Nadam:
+    lr: 0.001
+
+Metric:
+  name: ClsMetric
+  main_indicator: acc
+
+Callbacks: # has to be in order, not used currently.
+  - ModelCheckpoint:
+      filepath: !join [*v_checkpoint, '/hello']
+      save_best_only: false
+      save_freq: 'epoch'
+      monitor: 'val_loss'
+      verbose: 1
+      mode: 'min'
+  - ReduceLROnPlateau:
+      monitor: 'val_loss'
+  - EarlyStopping:
+      patience: 1
+
+Train:
+  dataset:
+    names: [!join [*base, 'trainset.0'],
+            !join [*base, 'trainset.1'],
+            !join [*base, 'trainset.2'],
+            #!join [*base, 'train.3'],
+            #!join [*base, 'train.4']
+    ]
+    batch_size: &batch_size 5000
+    shuffle: false
+    buffer_size: 1000 * 5 * 10
+
+Eval:
+  dataset:
+    names: [!join [*base, 'test.8.0'],
+            !join [*base, 'test.8.1'],
+            !join [*base, 'test.8.2'],
+            !join [*base, 'test.8.3'],
+            !join [*base, 'test.8.4'],
+            !join [*base, 'test.8.5'],
+            !join [*base, 'test.8.6'],
+            !join [*base, 'test.8.7']
+    ]
+    batch_size: *batch_size
